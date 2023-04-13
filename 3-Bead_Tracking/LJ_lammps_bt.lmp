@@ -1,0 +1,71 @@
+# LJ chains NVT
+units		lj
+atom_style      full
+special_bonds   fene
+
+boundary        p p p
+
+variable T equal 1.0 #Value of the temperature
+variable R equal 1.0 #Radius of the probe bead 
+variable N equal 1  #Number of probe beads
+variable Rc equal 1.5*${R} #Cutoff of the probe bead
+pair_style hybrid/overlay ljlambda 0.5 0.0 3.0 lj/cut 3.0
+bond_style      harmonic
+
+read_data       lj_beadtrack_${F}_N${N}R${R}.data
+#read_restart       $F.restart*.tmp
+
+neighbor        0.6 bin
+neigh_modify	every 1 delay 1 check yes
+comm_modify 	vel yes
+
+bond_coeff      1 37500.0 1.0 
+
+#          type1  type2  potial epsilon sigma  lambda  lj_cut  coulm_cut
+pair_coeff   *      *   ljlambda   0.0     0.0     0.0    0.0      0.0
+pair_coeff   *      *    lj/cut   1.0     1.0            3.0
+pair_coeff   1      1    lj/cut   1.0     1.0            3.0
+pair_coeff   1      2   ljlambda  4.0     ${R}    0.0   ${Rc}   0.0
+pair_coeff   2      2   ljlambda  4.0     ${R}    0.0   ${Rc}   0.0
+pair_modify     shift yes
+
+fix 1 all nve 
+fix 2 all langevin ${T} ${T} 1.0 48279 zero yes
+fix fixcentro all recenter INIT INIT INIT #Keep the center of mass in its initial position
+
+#########################################################################################################
+############################################     Results     ############################################
+
+####   Radius of gyration   ####
+compute cc1 all chunk/atom molecule
+compute radio all gyration/chunk cc1
+fix radius all ave/time 100000 1 100000 c_radio[*] file radio$F.out mode vector
+#################################
+
+#######   Density profile   #######
+#compute densidad all chunk/atom bin/1d z lower 0.5
+#fix 3 all ave/chunk 200000 1 200000 densidad density/mass file density.profile
+###################################
+
+#########   Trajectory   ##########
+dump 1 all custom 50000 traj$F.lammpstrj.gz id mol type xu yu zu
+dump_modify 1 sort id
+
+group beads type 2
+dump 2 beads custom 100 Track_beads$F_N${N}_R${R}.lammpstrj id mol type xu yu zu
+dump_modify 1 sort id
+###################################
+
+################################################################################################################
+################################################################################################################
+
+compute 2 beads pe/atom pair 
+compute 1 all reduce sum c_2
+thermo 1000
+thermo_style custom step pe ke ebond epair press temp lx ly lz pxx pyy pzz c_1 spcpu density
+timestep        0.001
+
+restart   100000 $F.restart1.tmp $F.restart2.tmp
+
+#timer timeout 71:30:00 every 50000
+run 500000000
