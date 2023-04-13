@@ -10,7 +10,7 @@ The LAMMPS script has the following variables:
    -Oscillation period in simulation units (line 42)
    -Deformation amplitude in box units (line 43)
 
-To run in serial one should execute this: ./lmp_serial -i LJ_lammps.lmp -v F N50NC375
+To run in serial one should execute this: ./lmp_serial -i LJ_lammps_wiggle.lmp -v F N50NC375
 
 To calculate the viscosity on should
   1. Run different frequencies for a given amplitude. 
